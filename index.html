@@ -502,7 +502,7 @@
           if (soundOn) speak('선택 해제했어요', soundOn);
           return;
         }
-        
+
         const rect = e?.currentTarget?.getBoundingClientRect() || { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
         setFlyItem({ ...opt, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
         setTimeout(() => setFlyItem(null), 1000);
@@ -686,7 +686,7 @@
         <div className="w-full h-full flex flex-col" style={{ background: '#fffbeb' }}>
           <Header label="🎒 오늘의 활동 안내" soundOn={soundOn} toggleSound={toggleSound} onHome={handleReset} />
           <div className="flex-1 flex flex-col items-center justify-center px-4 py-2 text-center min-h-0 overflow-hidden">
-            
+
             <h2 className="txt-3xl sm:txt-5xl font-black text-slate-800 mb-4 sm:mb-6 leading-tight word-keep shrink-0">
               나만의 <span className="text-amber-600">보물상자</span>를<br />
               어떻게 채울까요? 🎁
@@ -700,7 +700,7 @@
                 </p>
               </div>
 
-              <div className="slide-up bg-amber-100 p-4 sm:p-5 rounded-3xl border-[5px] border-amber-300 shadow-xl flex items-center gap-4 sm:gap-6 shrink-0" style={{animationDelay: '0.2s'}}>
+              <div className="slide-up bg-amber-100 p-4 sm:p-5 rounded-3xl border-[5px] border-amber-300 shadow-xl flex items-center gap-4 sm:gap-6 shrink-0" style={{ animationDelay: '0.2s' }}>
                 <span className="emoji-md sm:emoji-lg">🎯</span>
                 <p className="txt-xl sm:txt-3xl font-black text-amber-900 text-left word-keep leading-tight">
                   좋아하는 것을<br />
@@ -708,7 +708,7 @@
                 </p>
               </div>
 
-              <div className="slide-up bg-rose-50 p-4 sm:p-5 rounded-3xl border-[5px] border-rose-200 shadow-xl flex items-center gap-4 sm:gap-6 shrink-0" style={{animationDelay: '0.4s'}}>
+              <div className="slide-up bg-rose-50 p-4 sm:p-5 rounded-3xl border-[5px] border-rose-200 shadow-xl flex items-center gap-4 sm:gap-6 shrink-0" style={{ animationDelay: '0.4s' }}>
                 <span className="emoji-md sm:emoji-lg">🪞</span>
                 <p className="txt-xl sm:txt-3xl font-black text-rose-900 text-left word-keep leading-tight">
                   가장 중요한 보물은<br />
@@ -795,7 +795,7 @@
                 <p className="text-xl sm:text-2xl text-rose-500 mb-2 font-black border-b-2 pb-2">
                   💡 "{currentStep?.desc}"
                 </p>
-                🎯 나를 가장 잘 아는 것이 중요해요!<br/>
+                🎯 나를 가장 잘 아는 것이 중요해요!<br />
                 <span className="text-rose-500 text-3xl sm:text-4xl">나의 보물을 <u className="underline-offset-4">모두</u> 골라봐요!</span>
               </div>
               <p className="txt-xl sm:txt-2xl font-black text-amber-600 animate-bounce mt-2">👆 화면을 눌러서 시작해요!</p>
@@ -851,8 +851,8 @@
                 return (
                   <button key={idx} onClick={e => handleSelect(opt, e)}
                     className={`btn flex flex-col items-center justify-center w-full h-full p-2 sm:p-4 rounded-3xl border-[5px] shadow-lg transition-all ${selected
-                        ? 'scale-105 text-white border-white shadow-2xl'
-                        : 'bg-white border-amber-200 hover:border-amber-400 hover:shadow-xl'
+                      ? 'scale-105 text-white border-white shadow-2xl'
+                      : 'bg-white border-amber-200 hover:border-amber-400 hover:shadow-xl'
                       }`}
                     style={selected ? { background: sc.selBg } : {}}>
                     <span className="emoji-md sm:emoji-lg mb-2">{opt.icon}</span>
