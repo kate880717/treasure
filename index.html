@@ -42,9 +42,8 @@
 
     #app {
       width: 100%;
+      height: 100%;
       max-width: 1024px;
-      height: 100vh;
-      max-height: 768px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -55,7 +54,7 @@
     @media (min-width: 768px) {
       #app {
         border-radius: 2.5rem;
-        height: 96vh;
+        height: 100%;
       }
     }
 
@@ -414,6 +413,7 @@
       const [isBoxOpen, setIsBoxOpen] = useState(false);
       const [flyItem, setFlyItem] = useState(null);
       const [showDone, setShowDone] = useState(false);
+      const [customInput, setCustomInput] = useState('');
 
       // 녹음 관련
       const [recStep, setRecStep] = useState('idle'); // idle | rec | done
@@ -436,10 +436,11 @@
       /* ── TTS 자동 읽기 ── */
       useEffect(() => {
         if (!soundOn) return;
-        if (phase === 'intro') speak('나만의 보물상자를 채워볼까요? 이 보물상자 안에는 소중한 보물이 들어있어요!', true);
-        if (phase === 'concept') speak('상자를 클릭해서 무엇인지 확인해보세요!', true);
-        if (phase === 'stepPopup' && currentStep) speak(`${stepIdx + 1}단계. ${currentStep.desc}`, true);
-        if (phase === 'recording') speak('나만의 보물상자를 발표해볼까요? 발표 원고를 읽고 녹음 버튼을 눌러봐요!', true);
+        if (phase === 'intro') speak('나만의 보물상자를 어떻게 채울까요? 총 3단계의 미션이 있어요! 좋아하는 것을 모두 골라볼까요? 가장 중요한 보물은 바로 나예요!', true);
+        if (phase === 'concept') speak('상자를 클릭해서 무엇인지 확인해보세요! 가장 귀한 보물은 바로 나야 나!', true);
+        if (phase === 'stepPopup' && currentStep) speak(`${currentStep.desc} 나를 가장 잘 아는 것이 중요해요. 나의 보물을 모두 골라봐요!`, true);
+        if (phase === 'activity' && currentStep) speak(`${currentStep.title}. 모두 마음껏 골라봐요! 원하는 보물이 없다면 직접 적어보세요!`, true);
+        if (phase === 'recording') speak('나만의 보물상자를 발표해볼까요? 발표 원고를 읽고 녹음 시작 버튼을 눌러봐요!', true);
       }, [phase, stepIdx, soundOn]);
 
       /* ── 수료증 화면 진입 시 confetti + 자동 저장 ── */
@@ -475,25 +476,6 @@
         })();
       }, []);
 
-      /* ── 보물 2개 선택 완료 → 다음 단계 자동 이동 ── */
-      useEffect(() => {
-        if (picks.length < 2) return;
-        setShowDone(true);
-        const timer = setTimeout(() => {
-          const newAll = [...myTreasures, ...picks];
-          setMyTreasures(newAll);
-          setPicks([]);
-          setShowDone(false);
-          if (stepIdx >= steps.length - 1) {
-            setPhase('recording');
-          } else {
-            setStepIdx(i => i + 1);
-            setPhase('stepPopup');
-          }
-        }, 1500);
-        return () => clearTimeout(timer);
-      }, [picks]);
-
       /* ── 마이크 권한 ── */
       const requestMic = async () => {
         try {
@@ -512,15 +494,42 @@
         setSaving(false); setSaved(false);
       }, []);
 
-      /* ── 보물 선택 ── */
+      /* ── 보물 선택 (토글 및 모두 고르기 가능) ── */
       const handleSelect = useCallback((opt, e) => {
-        if (picks.length >= 2 || picks.find(p => p.text === opt.text)) return;
+        const isAlreadyPicked = !!picks.find(p => p.text === opt.text);
+        if (isAlreadyPicked) {
+          setPicks(prev => prev.filter(p => p.text !== opt.text)); // 클릭 시 선택 해제
+          if (soundOn) speak('선택 해제했어요', soundOn);
+          return;
+        }
+        
         const rect = e?.currentTarget?.getBoundingClientRect() || { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 };
         setFlyItem({ ...opt, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
         setTimeout(() => setFlyItem(null), 1000);
         if (soundOn) { playChime(); setTimeout(() => speak(opt.feedback, soundOn), 350); }
         setPicks(prev => [...prev, { stepTitle: currentStep.title, ...opt }]);
       }, [picks, currentStep, soundOn]);
+
+      /* ── 선택 완료 버튼 클릭 ── */
+      const handleDoneSelecting = () => {
+        if (picks.length === 0) {
+          alert('적어도 하나는 골라주세요!');
+          return;
+        }
+        setShowDone(true);
+        setTimeout(() => {
+          const newAll = [...myTreasures, ...picks];
+          setMyTreasures(newAll);
+          setPicks([]);
+          setShowDone(false);
+          if (stepIdx >= steps.length - 1) {
+            setPhase('recording');
+          } else {
+            setStepIdx(i => i + 1);
+            setPhase('stepPopup');
+          }
+        }, 1500);
+      };
 
       /* ── 녹음 ── */
       const startRec = async () => {
@@ -675,31 +684,42 @@
       ════════════════════════════════ */
       if (phase === 'intro') return (
         <div className="w-full h-full flex flex-col" style={{ background: '#fffbeb' }}>
-          <Header label="🎒 오늘의 공부 약속" soundOn={soundOn} toggleSound={toggleSound} onHome={handleReset} />
-          <div className="flex-1 flex flex-col items-center justify-center px-6 py-4 text-center">
-            <div className="bg-amber-100 text-amber-800 font-black px-6 py-2 rounded-full mb-4 txt-lg">
-              📚 오늘 우리가 할 활동을 알아볼까요?
-            </div>
-            <h2 className="txt-4xl font-black text-slate-800 mb-4 leading-tight word-keep">
-              나만의 보물상자를<br />
-              <span className="text-amber-600">채워볼까요?</span> 🎁
+          <Header label="🎒 오늘의 활동 안내" soundOn={soundOn} toggleSound={toggleSound} onHome={handleReset} />
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-2 text-center min-h-0 overflow-hidden">
+            
+            <h2 className="txt-3xl sm:txt-5xl font-black text-slate-800 mb-4 sm:mb-6 leading-tight word-keep shrink-0">
+              나만의 <span className="text-amber-600">보물상자</span>를<br />
+              어떻게 채울까요? 🎁
             </h2>
-            <div className="card-amber p-5 max-w-lg mb-4 text-left">
-              <p className="txt-xl font-bold text-slate-600 leading-loose word-keep">
-                💎 이 보물상자 안에는 소중한 보물이 들어있어요!<br />
-                🌟 <strong>내가 좋아하는 것</strong>을 찾아봐요<br />
-                💪 <strong>내가 잘하는 것</strong>을 찾아봐요<br />
-                🥰 <strong>내가 되고 싶은 사람</strong>을 정해봐요<br />
-                <br />
-                각 단계에서 <strong className="text-amber-700">2가지씩</strong> 골라서 담으면 돼요 🎯
-              </p>
+
+            <div className="flex flex-col gap-3 sm:gap-4 w-full max-w-lg mb-4 sm:mb-6 min-h-0 flex-1 justify-center">
+              <div className="slide-up bg-white p-4 sm:p-5 rounded-3xl border-[5px] border-amber-200 shadow-xl flex items-center gap-4 sm:gap-6 shrink-0">
+                <span className="emoji-md sm:emoji-lg">🗺️</span>
+                <p className="txt-xl sm:txt-3xl font-black text-amber-900 text-left word-keep leading-tight">
+                  총 <strong className="text-rose-500 text-2xl sm:text-4xl text-stroke">3단계</strong>의<br />미션이 있어요!
+                </p>
+              </div>
+
+              <div className="slide-up bg-amber-100 p-4 sm:p-5 rounded-3xl border-[5px] border-amber-300 shadow-xl flex items-center gap-4 sm:gap-6 shrink-0" style={{animationDelay: '0.2s'}}>
+                <span className="emoji-md sm:emoji-lg">🎯</span>
+                <p className="txt-xl sm:txt-3xl font-black text-amber-900 text-left word-keep leading-tight">
+                  좋아하는 것을<br />
+                  <strong className="text-rose-600 text-2xl sm:text-4xl">모두 골라볼까요?</strong>
+                </p>
+              </div>
+
+              <div className="slide-up bg-rose-50 p-4 sm:p-5 rounded-3xl border-[5px] border-rose-200 shadow-xl flex items-center gap-4 sm:gap-6 shrink-0" style={{animationDelay: '0.4s'}}>
+                <span className="emoji-md sm:emoji-lg">🪞</span>
+                <p className="txt-xl sm:txt-3xl font-black text-rose-900 text-left word-keep leading-tight">
+                  가장 중요한 보물은<br />
+                  <strong className="text-rose-600 text-2xl sm:text-4xl">바로 '나'</strong>예요!
+                </p>
+              </div>
             </div>
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl px-5 py-3 mb-4 txt-lg font-bold text-amber-700 word-keep text-center">
-              ✅ 나를 잘 알면 자신감이 생기고 친구들과도 더 잘 어울릴 수 있어요!
-            </div>
+
             <button onClick={() => setPhase('concept')}
-              className="btn w-full max-w-sm py-5 bg-amber-500 text-white rounded-2xl font-black txt-3xl shadow-xl hover:bg-amber-600">
-              보물상자 열어보기 ➡️
+              className="btn w-full max-w-sm py-4 sm:py-5 bg-amber-500 text-white rounded-[2rem] font-black txt-2xl sm:txt-3xl shadow-xl hover:bg-amber-600 shrink-0">
+              보물상자 열러 가기 ➡️
             </button>
           </div>
         </div>
@@ -759,24 +779,26 @@
         ];
         const c = colors[stepIdx] || colors[0];
         return (
-          <div className="w-full h-full flex flex-col items-center justify-center px-6 py-4 text-center cursor-pointer"
+          <div className="w-full h-full flex flex-col items-center justify-center px-4 py-4 text-center cursor-pointer"
             style={{ background: c.bg }} onClick={() => setPhase('activity')}>
-            <div className="pop-in font-black px-6 py-2 rounded-full txt-xl mb-4 shadow-lg"
+            <div className="pop-in font-black px-6 py-2 rounded-full txt-lg mb-3 shadow-lg"
               style={{ background: c.badgeBg, color: c.badgeText }}>
               {c.emoji} {stepIdx + 1}단계 / {steps.length}단계
             </div>
-            <div className="bg-white/95 rounded-3xl px-7 py-5 max-w-lg w-full shadow-2xl pop-in border-4"
+            <div className="bg-white/95 rounded-3xl px-6 py-4 max-w-lg w-full shadow-2xl pop-in border-4"
               style={{ animationDelay: '.08s', borderColor: c.border }}>
-              <p className="txt-lg font-black text-slate-500 mb-1">🎯 지금 할 활동</p>
-              <h1 className="txt-3xl font-black mb-1 leading-tight word-keep" style={{ color: c.headText }}>
-                {currentStep?.desc}
+              <p className="txt-base font-black text-slate-500 mb-1">🎯 지금 할 활동</p>
+              <h1 className="txt-3xl sm:txt-4xl font-black mb-2 leading-tight word-keep" style={{ color: c.headText }}>
+                {currentStep?.title}
               </h1>
-              <p className="txt-xl font-bold text-slate-500 mb-3">({currentStep?.title})</p>
-              <div className="bg-slate-50 rounded-2xl px-4 py-2 txt-lg font-bold text-slate-600 mb-3 word-keep">
-                💡 나 자신을 알면 자신감이 쑥쑥 자라요!<br />
-                좋아하는 것 중에서 <strong>2개</strong>를 골라봐요 🎯
+              <div className="bg-white rounded-3xl px-5 py-4 txt-xl sm:txt-2xl font-black text-slate-700 mb-4 word-keep shadow-sm border-[4px]" style={{ borderColor: c.border }}>
+                <p className="text-xl sm:text-2xl text-rose-500 mb-2 font-black border-b-2 pb-2">
+                  💡 "{currentStep?.desc}"
+                </p>
+                🎯 나를 가장 잘 아는 것이 중요해요!<br/>
+                <span className="text-rose-500 text-3xl sm:text-4xl">나의 보물을 <u className="underline-offset-4">모두</u> 골라봐요!</span>
               </div>
-              <p className="txt-xl font-black text-amber-600 animate-bounce">👆 화면을 눌러서 시작해요!</p>
+              <p className="txt-xl sm:txt-2xl font-black text-amber-600 animate-bounce mt-2">👆 화면을 눌러서 시작해요!</p>
             </div>
           </div>
         );
@@ -807,7 +829,7 @@
                   {stepIdx + 1}단계: {currentStep?.title}
                 </span>
                 <span className="font-black txt-base text-white px-3 py-0.5 rounded-full" style={{ background: sc.badgeBg }}>
-                  💎 수집한 보물: {picks.length} / 2개 &nbsp;|&nbsp; ✅ 2개를 골라봐요!
+                  💎 수집한 보물: {picks.length}개 &nbsp;|&nbsp; ✅ 자유롭게 골라요!
                 </span>
               </div>
               <button onClick={toggleSound} className={`btn w-10 h-10 rounded-xl border-2 txt-base px-2 ${soundOn ? 'border-amber-300' : 'border-slate-200'}`}
@@ -816,51 +838,77 @@
               </button>
             </div>
             {/* ─ 안내: 1줄로 ─ */}
-            <div className="flex items-center justify-center px-3 py-1.5 shrink-0" style={{ background: sc.headerBg }}>
-              <span className="txt-lg font-black text-center word-keep" style={{ color: sc.badgeBg }}>
-                {currentStep?.desc}
+            <div className="flex items-center justify-center px-3 py-2 shrink-0 border-b-2" style={{ background: sc.headerBg, borderColor: sc.border }}>
+              <span className="txt-xl sm:txt-2xl font-black text-center word-keep text-amber-900 border-2 border-white/50 bg-white/40 px-4 py-1 rounded-full shadow-sm">
+                🎯 {currentStep?.title}: <strong className="text-rose-600">모두 마음껏 골라봐요!</strong>
               </span>
             </div>
 
             {/* ─ 보물 아이템 그리드 (2×4) ─ */}
-            <div className="flex-1 grid grid-cols-4 gap-3 p-4 content-center min-h-0">
+            <div className="flex-1 grid grid-cols-4 grid-rows-2 gap-3 p-3 content-center min-h-0">
               {allOptions.map((opt, idx) => {
                 const selected = !!picks.find(p => p.text === opt.text);
-                const disabled = picks.length >= 2 && !selected;
                 return (
-                  <button key={idx} onClick={e => handleSelect(opt, e)} disabled={disabled}
-                    className={`btn flex flex-col items-center justify-center p-3 rounded-3xl border-4 shadow-md transition-all ${selected
-                        ? 'scale-105 text-white border-white shadow-xl'
-                        : disabled
-                          ? 'opacity-35 bg-slate-50 border-slate-100 cursor-not-allowed'
-                          : 'bg-white border-amber-100 hover:border-amber-300 hover:shadow-lg'
+                  <button key={idx} onClick={e => handleSelect(opt, e)}
+                    className={`btn flex flex-col items-center justify-center w-full h-full p-2 sm:p-4 rounded-3xl border-[5px] shadow-lg transition-all ${selected
+                        ? 'scale-105 text-white border-white shadow-2xl'
+                        : 'bg-white border-amber-200 hover:border-amber-400 hover:shadow-xl'
                       }`}
                     style={selected ? { background: sc.selBg } : {}}>
-                    <span className="emoji-sm mb-1">{opt.icon}</span>
-                    <span className={`txt-base font-black word-keep leading-tight ${selected ? 'text-white' : 'text-slate-700'}`}>{opt.text}</span>
-                    {selected && <span className="txt-sm font-black text-white mt-1">✓ 선택됨</span>}
+                    <span className="emoji-md sm:emoji-lg mb-2">{opt.icon}</span>
+                    <span className={`txt-lg sm:txt-xl font-black word-keep leading-tight ${selected ? 'text-white' : 'text-slate-700'}`}>{opt.text}</span>
+                    {selected && <span className="txt-base font-black text-white mt-1">✓ 선택됨</span>}
                   </button>
                 );
               })}
             </div>
 
-            {/* ─ 하단: 선택 미리보기 ─ */}
-            <div className="flex items-center gap-3 px-4 py-3 shrink-0 border-t-4 overflow-hidden"
+            {/* ─ 직접 쓰기 영역 ─ */}
+            <div className="px-3 shrink-0 flex gap-2 w-full max-w-lg mx-auto mb-1">
+              <input
+                type="text"
+                placeholder="내가 원하는 보물을 직접 써봐요! ✍️"
+                value={customInput}
+                onChange={e => setCustomInput(e.target.value)}
+                className="flex-1 px-4 py-2 sm:py-3 rounded-2xl border-4 shadow-inner txt-base sm:txt-lg font-bold"
+                style={{ borderColor: sc.border }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && customInput.trim()) {
+                    handleSelect({ text: customInput.trim(), icon: '✍️', feedback: '오, 직접 적었구나! 대단해!' }, e);
+                    setCustomInput('');
+                  }
+                }}
+              />
+              <button
+                onClick={e => {
+                  if (customInput.trim()) {
+                    handleSelect({ text: customInput.trim(), icon: '✍️', feedback: '오, 직접 적었구나! 멋진 생각이야!' }, e);
+                    setCustomInput('');
+                  }
+                }}
+                className="btn text-white font-black px-4 sm:px-6 rounded-2xl txt-base sm:txt-xl shadow-md hover:scale-105"
+                style={{ background: sc.badgeBg }}>
+                추가!
+              </button>
+            </div>
+
+            {/* ─ 하단: 선택 미리보기 및 완료 버튼 ─ */}
+            <div className="flex items-center gap-2 px-3 py-2 shrink-0 border-t-4 overflow-hidden"
               style={{ background: sc.headerBg, borderColor: sc.border }}>
-              <span className="txt-base font-black shrink-0" style={{ color: sc.badgeBg }}>내가 고른 보물 🎁:</span>
-              <div className="flex gap-2 flex-1">
-                {picks.length === 0 && <span className="txt-base font-bold text-slate-400">아직 고르지 않았어요. 골라볼까요?</span>}
+              <span className="txt-sm sm:txt-base font-black shrink-0" style={{ color: sc.badgeBg }}>내가 고른 보물:</span>
+              <div className="flex gap-2 flex-1 overflow-x-auto whitespace-nowrap items-center min-w-0" style={{ scrollbarWidth: 'none' }}>
+                {picks.length === 0 && <span className="txt-sm sm:txt-base font-bold text-slate-400">자유롭게 골라보세요! 눌러서 취소할 수도 있어요.</span>}
                 {picks.map((p, i) => (
-                  <span key={i} className="txt-lg font-black bg-white px-4 py-2 rounded-2xl border-2 shadow-sm" style={{ borderColor: sc.border }}>
+                  <span key={i} className="txt-base sm:txt-lg font-black bg-white px-3 py-1 rounded-full border-2 shadow-sm shrink-0" style={{ borderColor: sc.border }}>
                     {p.icon} {p.text}
                   </span>
                 ))}
-                {picks.length === 2 && (
-                  <span className="txt-base font-black text-white px-3 py-2 rounded-2xl shine" style={{ background: sc.badgeBg }}>
-                    🎉 다 골랐어요!
-                  </span>
-                )}
               </div>
+              <button onClick={handleDoneSelecting}
+                className="btn shrink-0 py-2 sm:py-3 px-6 txt-xl sm:txt-2xl font-black text-white rounded-3xl shadow-xl hover:scale-105 shine"
+                style={{ background: picks.length > 0 ? '#10B981' : '#9CA3AF' }}>
+                ✅ 다 골랐어요!
+              </button>
             </div>
 
             {/* ─ 날아가는 아이템 ─ */}
@@ -873,9 +921,11 @@
             {/* ─ 완료 오버레이 ─ */}
             {showDone && (
               <div className="fixed inset-0 flex items-center justify-center z-40 pointer-events-none">
-                <div className="pop-in bg-amber-500 text-white px-10 py-6 rounded-3xl shadow-2xl txt-3xl font-black text-center">
+                <div className="pop-in bg-amber-500 text-white px-8 py-6 rounded-3xl shadow-2xl txt-3xl sm:txt-4xl font-black text-center leading-tight">
                   🎉 다 골랐어요!<br />
-                  <span className="txt-xl">잠깐만 기다려봐요...</span>
+                  <span className="txt-xl sm:txt-2xl mt-2 block opacity-90">
+                    {stepIdx >= steps.length - 1 ? '나만의 보물상자를 발표해볼까요? 🎤' : '다음 보물을 찾으러 가봐요...'}
+                  </span>
                 </div>
               </div>
             )}
@@ -903,7 +953,9 @@
                   <p>💛 제가 좋아하는 것은 <strong className="text-amber-600">{likeItems.map(t => `${t.icon}${t.text}`).join(', ')}</strong>이에요.</p>
                   <p>💪 제가 잘하는 것은 <strong className="text-emerald-600">{skillItems.map(t => `${t.icon}${t.text}`).join(', ')}</strong>이에요.</p>
                   <p>🌟 저는 앞으로 <strong className="text-purple-600">{dreamItems.map(t => `${t.icon}${t.text}`).join(', ')}</strong>이/가 되고 싶어요!</p>
-                  <p className="mt-1 text-slate-500 txt-base">🤝 <em>친구들의 보물상자 발표를 듣고 함께 살펴봐요!</em></p>
+                  <p className="mt-2 pt-2 border-t-2 border-dashed border-amber-300 text-slate-700 txt-lg font-black word-keep">
+                    🤝 <em>"친구들의 보물상자 발표를 듣고 소중한 친구들의 보물상자도 함께 살펴보겠습니다. 감사합니다!"</em>
+                  </p>
                 </div>
               </div>
 
@@ -958,13 +1010,13 @@
       ════════════════════════════════ */
       if (phase === 'report') {
         const CategoryCard = ({ emoji, label, items, bg, border, textColor }) => (
-          <div className="flex-1 rounded-3xl p-4 border-4 shadow-lg flex flex-col" style={{ background: bg, borderColor: border }}>
-            <p className="txt-xl font-black text-center mb-3" style={{ color: textColor }}>{emoji} {label}</p>
-            <div className="flex flex-col gap-3 flex-1 justify-center">
+          <div className="flex-1 rounded-3xl p-3 sm:p-4 border-4 shadow-lg flex flex-col min-h-0" style={{ background: bg, borderColor: border }}>
+            <p className="txt-lg sm:txt-xl font-black text-center mb-2 shrink-0" style={{ color: textColor }}>{emoji} {label}</p>
+            <div className="flex flex-col gap-2 flex-1 justify-center min-h-0">
               {items.map((item, i) => (
-                <div key={i} className="flex items-center gap-3 bg-white/80 rounded-2xl px-4 py-3 shadow-sm">
-                  <span className="emoji-sm">{item.icon}</span>
-                  <span className="txt-xl font-black text-slate-800 word-keep">{item.text}</span>
+                <div key={i} className="flex items-center gap-2 bg-white/80 rounded-2xl px-3 py-2 shadow-sm shrink-0">
+                  <span className="emoji-sm sm:emoji-md">{item.icon}</span>
+                  <span className="txt-lg sm:txt-xl font-black text-slate-800 word-keep">{item.text}</span>
                 </div>
               ))}
             </div>
